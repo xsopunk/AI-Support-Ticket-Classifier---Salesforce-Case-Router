@@ -2,6 +2,7 @@
 <mule xmlns="http://www.mulesoft.org/schema/mule/core"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
       xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
       xmlns:os="http://www.mulesoft.org/schema/mule/os"
       xsi:schemaLocation="
