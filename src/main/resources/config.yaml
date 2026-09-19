@@ -2,6 +2,10 @@
 # AI Support Ticket Classifier & Salesforce Case Router Configuration
 # ==============================================================================
 
+# API Manager Autodiscovery Configuration
+api:
+  id: "1984201" # Linked API ID in Anypoint API Manager
+
 # API-Led Connectivity Ports
 http:
   experience:
