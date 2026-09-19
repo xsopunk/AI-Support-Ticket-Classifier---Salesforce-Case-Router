@@ -63,7 +63,7 @@ var simulatedId = "500" ++ ((randomInt(899999999) + 100000000) as String)
         <!-- Invoke System API via HTTP Request -->
         <http:request method="POST"
                       config-ref="HTTP_Request_System_API"
-                      path="/cases"
+                      path="/crm/cases"
                       doc:name="POST /api/crm/cases">
             <http:headers>#[{ "X-Correlation-ID": correlationId }]</http:headers>
         </http:request>
