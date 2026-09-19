@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+    <munit:config name="process-api-test-suite.xml"/>
+
+    <!-- Test: Choice Router maps Critical Urgency to P1-Critical and Escalates -->
+    <munit:test name="test-choice-router-maps-critical-to-p1" description="Verify Critical urgency maps to P1-Critical">
+        <munit:execution>
+            <munit:set-event>
+                <munit:variables>
+                    <munit:variable key="originalTicket" value="#[{
+                        ticketId: 'TCK-2001',
+                        customerName: 'Sam Taylor',
+                        email: 'sam@example.com',
+                        subject: 'Production Server Outage',
+                        description: 'All production servers are unreachable immediately.'
+                    }]"/>
+                    <munit:variable key="aiAnalysis" value="#[{
+                        sentiment: 'Angry',
+                        urgency: 'Critical',
+                        aiSummary: 'Critical production outage reported.'
+                    }]"/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="route-ticket-by-urgency-subflow"/>
+        </munit:execution>
+
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.assignedPriority]"
+                                     is="#[MunitTools::equalTo('P1-Critical')]"
+                                     message="Expected P1-Critical priority"/>
+            <munit-tools:assert-that expression="#[payload.routedQueue]"
+                                     is="#[MunitTools::equalTo('Critical-Incident-Response')]"
+                                     message="Expected Critical-Incident-Response queue"/>
+            <munit-tools:assert-that expression="#[payload.isEscalated]"
+                                     is="#[MunitTools::equalTo(true)]"
+                                     message="Expected escalation flag true"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test: Choice Router maps Medium Urgency to P3-Medium -->
+    <munit:test name="test-choice-router-maps-medium-to-p3" description="Verify Medium urgency maps to P3-Medium">
+        <munit:execution>
+            <munit:set-event>
+                <munit:variables>
+                    <munit:variable key="originalTicket" value="#[{
+                        ticketId: 'TCK-2002',
+                        customerName: 'Jordan Lee',
+                        email: 'jordan@example.com',
+                        subject: 'Question regarding invoice',
+                        description: 'Could you please explain line item 3 on my monthly invoice?'
+                    }]"/>
+                    <munit:variable key="aiAnalysis" value="#[{
+                        sentiment: 'Neutral',
+                        urgency: 'Medium',
+                        aiSummary: 'Invoice line item inquiry.'
+                    }]"/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="route-ticket-by-urgency-subflow"/>
+        </munit:execution>
+
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.assignedPriority]"
+                                     is="#[MunitTools::equalTo('P3-Medium')]"
+                                     message="Expected P3-Medium priority"/>
+            <munit-tools:assert-that expression="#[payload.routedQueue]"
+                                     is="#[MunitTools::equalTo('Standard-Support-Queue')]"
+                                     message="Expected Standard-Support-Queue"/>
+            <munit-tools:assert-that expression="#[payload.isEscalated]"
+                                     is="#[MunitTools::equalTo(false)]"
+                                     message="Expected escalation flag false"/>
+        </munit:validation>
+    </munit:test>
+
+</mule>
