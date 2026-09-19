@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:os="http://www.mulesoft.org/schema/mule/os"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- Process API: Ticket Processing Orchestration Flow -->
+    <flow name="process-ticket-flow" doc:name="process-ticket-flow">
+        <http:listener config-ref="HTTP_Listener_config_Process" path="/process-ticket" doc:name="HTTP Listener Process API">
+            <http:response statusCode="200"/>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+            </http:error-response>
+        </http:listener>
+
+        <logger level="INFO" doc:name="Log Ticket Received"
+                message="[Process API] Received ticket for processing: #[payload.ticketId]"/>
+
+        <set-variable value="#[payload]" variableName="originalTicket" doc:name="Save Original Ticket"/>
+
+        <!-- Object Store Idempotency Check: Verify if ticketId was already processed -->
+        <os:contains key="#[payload.ticketId]"
+                     objectStore="Ticket_Object_Store"
+                     target="ticketExists"
+                     doc:name="Check Ticket in Object Store"/>
+
+        <choice doc:name="Idempotency Choice Router">
+            <!-- Branch 1: Duplicate Ticket Found in Cache -->
+            <when expression="#[vars.ticketExists == true]">
+                <logger level="INFO" doc:name="Log Cache Hit"
+                        message="[Process API] Duplicate ticket detected: #[vars.originalTicket.ticketId]. Returning cached result."/>
+
+                <os:retrieve key="#[vars.originalTicket.ticketId]"
+                             objectStore="Ticket_Object_Store"
+                             target="cachedResult"
+                             doc:name="Retrieve Cached Ticket"/>
+
+                <ee:transform doc:name="Format Cached Response">
+                    <ee:message>
+                        <ee:set-payload resource="dwl/format-cached-response.dwl"/>
+                    </ee:message>
+                </ee:transform>
+            </when>
+
+            <!-- Branch 2: New Ticket - Orchestrate AI & System Layers -->
+            <otherwise>
+                <logger level="INFO" doc:name="Log New Ticket Processing"
+                        message="[Process API] Processing new ticket: #[vars.originalTicket.ticketId]"/>
+
+                <!-- 1. Invoke Groq AI Sub-flow to analyze sentiment and urgency -->
+                <flow-ref name="classify-ticket-with-ai-subflow" doc:name="Invoke AI Classification Sub-flow"/>
+
+                <!-- 2. Invoke Choice Router Sub-flow to determine priority queue -->
+                <flow-ref name="route-ticket-by-urgency-subflow" doc:name="Invoke Urgency Routing Sub-flow"/>
+
+                <!-- 3. Invoke System API Sub-flow to create CRM Case -->
+                <flow-ref name="create-crm-case-subflow" doc:name="Invoke CRM Case Creation Sub-flow"/>
+
+                <!-- 4. Cache Final Result in Object Store -->
+                <os:store key="#[payload.ticketId]"
+                          objectStore="Ticket_Object_Store"
+                          doc:name="Cache Ticket in Object Store">
+                    <os:value>#[payload]</os:value>
+                </os:store>
+
+                <logger level="INFO" doc:name="Log Ticket Processed"
+                        message="[Process API] Completed processing ticket: #[payload.ticketId] with Priority: #[payload.assignedPriority] and Case: #[payload.caseNumber]"/>
+            </otherwise>
+        </choice>
+
+        <error-handler ref="global-error-handler"/>
+    </flow>
+
+    <!-- Process API: Ticket Lookup Flow by TicketId -->
+    <flow name="get-ticket-status-flow" doc:name="get-ticket-status-flow">
+        <http:listener config-ref="HTTP_Listener_config_Process" path="/tickets/{ticketId}" doc:name="HTTP Listener Ticket Status">
+            <http:response statusCode="200"/>
+            <http:error-response statusCode="#[vars.httpStatus default 404]">
+                <http:body>#[payload]</http:body>
+            </http:error-response>
+        </http:listener>
+
+        <logger level="INFO" doc:name="Log Status Request"
+                message="[Process API] Querying status for ticketId: #[attributes.uriParams.ticketId]"/>
+
+        <try doc:name="Try Retrieve from Object Store">
+            <os:retrieve key="#[attributes.uriParams.ticketId]"
+                         objectStore="Ticket_Object_Store"
+                         doc:name="Retrieve Ticket from Object Store"/>
+            <error-handler>
+                <on-error-propagate type="OS:KEY_NOT_FOUND" enableNotifications="false" logException="false">
+                    <set-variable value="404" variableName="httpStatus" doc:name="Set 404"/>
+                    <ee:transform doc:name="Set Not Found Response">
+                        <ee:message>
+                            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    timestamp: now(),
+    statusCode: 404,
+    errorType: "TICKET_NOT_FOUND",
+    message: "No ticket found for ID: " ++ (attributes.uriParams.ticketId default ""),
+    correlationId: correlationId
+}]]></ee:set-payload>
+                        </ee:message>
+                    </ee:transform>
+                </on-error-propagate>
+            </error-handler>
+        </try>
+    </flow>
+
+</mule>
