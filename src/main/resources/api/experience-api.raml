@@ -1,0 +1,95 @@
+#%RAML 1.0
+title: Support Ticket Experience API
+description: RESTful Experience API for ingesting, validating, and triaging customer support tickets using AI classification and CRM routing.
+version: v1
+protocols: [HTTP, HTTPS]
+mediaType: application/json
+
+types:
+  TicketRequest: !include datatypes/ticket-request.raml
+  TicketResponse: !include datatypes/ticket-response.raml
+  ErrorResponse: !include datatypes/error-response.raml
+
+/tickets:
+  post:
+    displayName: Submit Ticket
+    description: Ingests a new customer support ticket, invokes AI-driven classification, and routes to CRM.
+    body:
+      application/json:
+        type: TicketRequest
+        example: !include examples/ticket-request-example.json
+    responses:
+      201:
+        description: Ticket successfully ingested, classified, and routed.
+        body:
+          application/json:
+            type: TicketResponse
+            example: !include examples/ticket-response-example.json
+      400:
+        description: Invalid request payload or missing required fields.
+        body:
+          application/json:
+            type: ErrorResponse
+            example: !include examples/error-response-example.json
+      500:
+        description: Internal server error during ticket processing.
+        body:
+          application/json:
+            type: ErrorResponse
+
+  /{ticketId}:
+    uriParameters:
+      ticketId:
+        type: string
+        description: Unique identifier of the ticket
+        example: "TCK-1001"
+    get:
+      displayName: Get Ticket Status
+      description: Retrieves the processing status and classification details for a specific ticket.
+      responses:
+        200:
+          description: Ticket found and status returned.
+          body:
+            application/json:
+              type: TicketResponse
+        404:
+          description: Ticket identifier not found in the system.
+          body:
+            application/json:
+              type: ErrorResponse
+
+  /bulk:
+    post:
+      displayName: Bulk Ticket Ingestion
+      description: Submits a batch of tickets for asynchronous processing via Mule Batch Job.
+      body:
+        application/json:
+          type: TicketRequest[]
+      responses:
+        202:
+          description: Batch accepted for asynchronous processing.
+          body:
+            application/json:
+              example:
+                batchId: "BATCH-9021"
+                status: "ACCEPTED"
+                recordCount: 5
+                receivedAt: "2026-09-19T10:30:00Z"
+        400:
+          description: Invalid batch payload.
+          body:
+            application/json:
+              type: ErrorResponse
+
+/health:
+  get:
+    displayName: Health Check
+    description: Verifies operational status of the Experience API service.
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              status: "UP"
+              service: "support-ticket-experience-api"
+              timestamp: "2026-09-19T10:30:00Z"
