@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <munit:config name="experience-api-test-suite.xml"/>
+
+    <!-- Test 1: Valid Ticket Ingestion Returns 201 and Processed Response -->
+    <munit:test name="test-post-tickets-valid-payload-success" description="Verify valid ticket returns 201 Created">
+        <munit:behavior>
+            <!-- Mock Process API HTTP Request Call -->
+            <munit-tools:mock-when processor="http:request">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="doc:name" whereValue="Invoke Process API"/>
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[{
+                        ticketId: 'TCK-1001',
+                        status: 'PROCESSED',
+                        sentiment: 'Angry',
+                        urgency: 'High',
+                        assignedPriority: 'P2-High',
+                        caseNumber: 'SF-84920',
+                        routedQueue: 'Priority-Specialist-Queue'
+                    }]"/>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="httpStatus" value="201"/>
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value="#[{
+                    ticketId: 'TCK-1001',
+                    customerName: 'Alex Johnson',
+                    email: 'alex.johnson@example.com',
+                    subject: 'Urgent: Payment charged twice',
+                    description: 'I was charged twice for my subscription renewal today. Please refund immediately.'
+                }]"/>
+            </munit:set-event>
+            <flow-ref name="post:\tickets:application\json:experience-api-config"/>
+        </munit:execution>
+
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.httpStatus]"
+                                     is="#[MunitTools::equalTo(201)]"
+                                     message="Expected HTTP 201 Created"/>
+            <munit-tools:assert-that expression="#[payload.status]"
+                                     is="#[MunitTools::equalTo('PROCESSED')]"
+                                     message="Expected status PROCESSED"/>
+            <munit-tools:assert-that expression="#[payload.ticketId]"
+                                     is="#[MunitTools::equalTo('TCK-1001')]"
+                                     message="Expected ticketId TCK-1001"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test 2: Invalid Ticket Payload Triggers 400 Bad Request -->
+    <munit:test name="test-post-tickets-invalid-payload-returns-400" description="Verify invalid payload returns 400 Bad Request">
+        <munit:execution>
+            <munit:set-event>
+                <!-- Missing required fields and invalid email -->
+                <munit:payload value="#[{
+                    ticketId: '',
+                    customerName: 'Alex',
+                    email: 'invalid-email-string',
+                    subject: '',
+                    description: 'short'
+                }]"/>
+            </munit:set-event>
+            <flow-ref name="post:\tickets:application\json:experience-api-config"/>
+        </munit:execution>
+
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.httpStatus]"
+                                     is="#[MunitTools::equalTo(400)]"
+                                     message="Expected HTTP 400 Bad Request"/>
+            <munit-tools:assert-that expression="#[payload.errorType]"
+                                     is="#[MunitTools::equalTo('VALIDATION:INVALID_PAYLOAD')]"
+                                     message="Expected validation error type"/>
+        </munit:validation>
+    </munit:test>
+
+    <!-- Test 3: Health Check Returns UP -->
+    <munit:test name="test-get-health-returns-up" description="Verify health endpoint returns status UP">
+        <munit:execution>
+            <flow-ref name="get:\health:experience-api-config"/>
+        </munit:execution>
+
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]"
+                                     is="#[MunitTools::equalTo('UP')]"
+                                     message="Expected health status UP"/>
+        </munit:validation>
+    </munit:test>
+
+</mule>
