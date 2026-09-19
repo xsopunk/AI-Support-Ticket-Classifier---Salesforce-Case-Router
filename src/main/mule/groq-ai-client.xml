@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- Sub-flow: AI Sentiment & Urgency Analysis via Groq Cloud / Fallback -->
+    <sub-flow name="classify-ticket-with-ai-subflow" doc:name="classify-ticket-with-ai-subflow">
+        <logger level="INFO" doc:name="Log Start AI Classification"
+                message="[AI Client] Initiating sentiment and urgency analysis for ticket: #[vars.originalTicket.ticketId]"/>
+
+        <choice doc:name="Check Groq API Key Configured">
+            <!-- If no valid key is provided in config.yaml, use local heuristic analyzer -->
+            <when expression="#[p('groq.apiKey') == 'YOUR_GROQ_API_KEY_HERE' or isEmpty(p('groq.apiKey'))]">
+                <logger level="INFO" doc:name="Log Mock Mode"
+                        message="[AI Client] Using embedded intelligent heuristic analyzer (API key placeholder active)."/>
+                <ee:transform doc:name="Generate Heuristic AI Response">
+                    <ee:message>
+                        <ee:set-payload resource="dwl/mock-ai-response.dwl"/>
+                    </ee:message>
+                </ee:transform>
+            </when>
+
+            <!-- Call Live Groq Cloud REST Endpoint -->
+            <otherwise>
+                <logger level="INFO" doc:name="Log Groq Call"
+                        message="[AI Client] Calling Groq Cloud API (${groq.host}) using model: ${groq.model}"/>
+
+                <try doc:name="Try Groq API Call">
+                    <ee:transform doc:name="Build Groq Request Payload">
+                        <ee:message>
+                            <ee:set-payload resource="dwl/build-groq-request.dwl"/>
+                        </ee:message>
+                    </ee:transform>
+
+                    <http:request method="POST"
+                                  config-ref="HTTP_Request_Groq_API"
+                                  path="${groq.endpoint}"
+                                  doc:name="POST /chat/completions">
+                        <http:headers>#[{
+                            "Authorization": "Bearer " ++ p('groq.apiKey'),
+                            "Content-Type": "application/json"
+                        }]</http:headers>
+                    </http:request>
+
+                    <ee:transform doc:name="Parse Groq JSON Response">
+                        <ee:message>
+                            <ee:set-payload resource="dwl/parse-groq-response.dwl"/>
+                        </ee:message>
+                    </ee:transform>
+
+                    <!-- Resilient Fallback: If external API fails, continue with fallback -->
+                    <error-handler>
+                        <on-error-continue type="HTTP:CONNECTIVITY, HTTP:TIMEOUT, HTTP:BAD_REQUEST, HTTP:UNAUTHORIZED"
+                                           enableNotifications="true" logException="true">
+                            <logger level="WARN" doc:name="Log AI Fallback Triggered"
+                                    message="[AI Client] Groq API call failed or timed out. Falling back to embedded analyzer."/>
+                            <ee:transform doc:name="Fallback Heuristic Analysis">
+                                <ee:message>
+                                    <ee:set-payload resource="dwl/mock-ai-response.dwl"/>
+                                </ee:message>
+                            </ee:transform>
+                        </on-error-continue>
+                    </error-handler>
+                </try>
+            </otherwise>
+        </choice>
+
+        <!-- Store AI Analysis result in flow variable -->
+        <set-variable value="#[payload]" variableName="aiAnalysis" doc:name="Save AI Analysis Variable"/>
+
+        <logger level="INFO" doc:name="Log AI Result"
+                message="[AI Client] Analysis complete: Sentiment=#[vars.aiAnalysis.sentiment], Urgency=#[vars.aiAnalysis.urgency]"/>
+    </sub-flow>
+
+</mule>
