@@ -72,7 +72,7 @@
 
     <build>
         <plugins>
-            <!-- Mule Maven Plugin -->
+            <!-- Mule Maven Plugin with CloudHub 2.0 Deployment Configuration -->
             <plugin>
                 <groupId>org.mule.tools.maven</groupId>
                 <artifactId>mule-maven-plugin</artifactId>
@@ -80,6 +80,21 @@
                 <extensions>true</extensions>
                 <configuration>
                     <classifier>mule-application</classifier>
+                    <cloudhub2Deployment>
+                        <uri>https://anypoint.mulesoft.com</uri>
+                        <muleVersion>${app.runtime}</muleVersion>
+                        <target>Cloudhub-US-East-2</target>
+                        <provider>MC</provider>
+                        <environment>Sandbox</environment>
+                        <applicationName>ai-support-ticket-classifier-v1</applicationName>
+                        <replicas>1</replicas>
+                        <vCores>0.1</vCores>
+                        <properties>
+                            <anypoint.platform.client_id>${anypoint.client_id}</anypoint.platform.client_id>
+                            <anypoint.platform.client_secret>${anypoint.client_secret}</anypoint.platform.client_secret>
+                            <groq.apiKey>${groq.apiKey}</groq.apiKey>
+                        </properties>
+                    </cloudhub2Deployment>
                 </configuration>
             </plugin>
             <!-- MUnit Maven Plugin -->
