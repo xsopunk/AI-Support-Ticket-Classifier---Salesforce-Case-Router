@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- Sub-flow: Urgency and Sentiment Routing Logic using Mule Choice Router -->
+    <sub-flow name="route-ticket-by-urgency-subflow" doc:name="route-ticket-by-urgency-subflow">
+        <logger level="INFO" doc:name="Log Start Routing"
+                message="[Ticket Router] Evaluating routing rules for Urgency: #[vars.aiAnalysis.urgency], Sentiment: #[vars.aiAnalysis.sentiment]"/>
+
+        <choice doc:name="Evaluate Urgency and Sentiment">
+            <!-- Branch 1: Critical Urgency OR (High Urgency + Angry Customer) -> P1-Critical -->
+            <when expression="#[vars.aiAnalysis.urgency == 'Critical' or (vars.aiAnalysis.urgency == 'High' and vars.aiAnalysis.sentiment == 'Angry')]">
+                <logger level="WARN" doc:name="Log P1 Critical Route"
+                        message="[Ticket Router] CRITICAL condition matched! Escalating to Critical-Incident-Response queue."/>
+                <set-variable value="#[{
+                    assignedPriority: 'P1-Critical',
+                    routedQueue: 'Critical-Incident-Response',
+                    slaHours: 1,
+                    isEscalated: true
+                }]" variableName="routingDetails" doc:name="Set P1 Critical Details"/>
+            </when>
+
+            <!-- Branch 2: High Urgency OR (Medium Urgency + Angry Customer) -> P2-High -->
+            <when expression="#[vars.aiAnalysis.urgency == 'High' or (vars.aiAnalysis.urgency == 'Medium' and vars.aiAnalysis.sentiment == 'Angry')]">
+                <logger level="INFO" doc:name="Log P2 High Route"
+                        message="[Ticket Router] HIGH priority condition matched. Routing to Priority-Specialist-Queue."/>
+                <set-variable value="#[{
+                    assignedPriority: 'P2-High',
+                    routedQueue: 'Priority-Specialist-Queue',
+                    slaHours: 4,
+                    isEscalated: false
+                }]" variableName="routingDetails" doc:name="Set P2 High Details"/>
+            </when>
+
+            <!-- Branch 3: Medium Urgency -> P3-Medium -->
+            <when expression="#[vars.aiAnalysis.urgency == 'Medium']">
+                <logger level="INFO" doc:name="Log P3 Medium Route"
+                        message="[Ticket Router] MEDIUM priority matched. Routing to Standard-Support-Queue."/>
+                <set-variable value="#[{
+                    assignedPriority: 'P3-Medium',
+                    routedQueue: 'Standard-Support-Queue',
+                    slaHours: 24,
+                    isEscalated: false
+                }]" variableName="routingDetails" doc:name="Set P3 Medium Details"/>
+            </when>
+
+            <!-- Default Branch: Low Urgency / Inquiries -> P4-Low -->
+            <otherwise>
+                <logger level="INFO" doc:name="Log P4 Low Route"
+                        message="[Ticket Router] LOW priority matched. Routing to General-Inquiries-Queue."/>
+                <set-variable value="#[{
+                    assignedPriority: 'P4-Low',
+                    routedQueue: 'General-Inquiries-Queue',
+                    slaHours: 48,
+                    isEscalated: false
+                }]" variableName="routingDetails" doc:name="Set P4 Low Details"/>
+            </otherwise>
+        </choice>
+
+        <!-- Enrich Classified Ticket with Routing Metadata using DataWeave -->
+        <ee:transform doc:name="Enrich Ticket with Routing Details">
+            <ee:message>
+                <ee:set-payload resource="dwl/enrich-ticket-priority.dwl"/>
+            </ee:message>
+        </ee:transform>
+
+        <logger level="INFO" doc:name="Log Routing Complete"
+                message="[Ticket Router] Assigned Priority: #[payload.assignedPriority], Target Queue: #[payload.routedQueue], SLA: #[payload.slaHours]h"/>
+    </sub-flow>
+
+</mule>
