@@ -1,0 +1,40 @@
+#%RAML 1.0 DataType
+type: object
+displayName: Ticket Response
+description: Schema for processed and routed support ticket response
+
+properties:
+  ticketId:
+    type: string
+    required: true
+    example: "TCK-1001"
+  status:
+    type: string
+    enum: [PROCESSED, DUPLICATE_CACHED, QUEUED, FAILED]
+    example: "PROCESSED"
+  sentiment:
+    type: string
+    enum: [Angry, Frustrated, Neutral, Satisfied]
+    example: "Angry"
+  urgency:
+    type: string
+    enum: [Critical, High, Medium, Low]
+    example: "High"
+  assignedPriority:
+    type: string
+    enum: [P1-Critical, P2-High, P3-Medium, P4-Low]
+    example: "P2-High"
+  caseNumber:
+    type: string
+    required: true
+    example: "SF-84920"
+  aiSummary:
+    type: string
+    required: false
+    example: "Customer reported duplicate subscription charge requesting immediate refund."
+  routedQueue:
+    type: string
+    example: "Priority-Billing-Escalations"
+  processedAt:
+    type: datetime
+    example: "2026-09-19T10:30:05Z"

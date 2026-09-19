@@ -1,0 +1,37 @@
+#%RAML 1.0 DataType
+type: object
+displayName: Ticket Request
+description: Schema for incoming customer support ticket submission
+
+properties:
+  ticketId:
+    type: string
+    required: true
+    example: "TCK-1001"
+  customerName:
+    type: string
+    required: true
+    example: "Alex Johnson"
+  email:
+    type: string
+    required: true
+    pattern: ^.+@.+\..+$
+    example: "alex.johnson@example.com"
+  subject:
+    type: string
+    required: true
+    example: "Urgent: Payment charged twice"
+  description:
+    type: string
+    required: true
+    minLength: 10
+    example: "I was charged twice for my subscription renewal today. Please refund the duplicate transaction immediately."
+  category:
+    type: string
+    required: false
+    enum: [Billing, Technical, Account, General]
+    default: General
+  submittedAt:
+    type: datetime
+    required: false
+    example: "2026-09-19T10:30:00Z"

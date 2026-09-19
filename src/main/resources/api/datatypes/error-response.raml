@@ -1,0 +1,21 @@
+#%RAML 1.0 DataType
+type: object
+displayName: Error Response
+description: Standardized API error payload for client and server exceptions
+
+properties:
+  timestamp:
+    type: datetime
+    example: "2026-09-19T10:30:00Z"
+  statusCode:
+    type: integer
+    example: 400
+  errorType:
+    type: string
+    example: "APIKIT:BAD_REQUEST"
+  message:
+    type: string
+    example: "Validation failed: 'email' must be a valid email address."
+  correlationId:
+    type: string
+    example: "c0a80101-8b4d-4195-a2bf-a2565e89f62f"
