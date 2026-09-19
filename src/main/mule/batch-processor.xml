@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:os="http://www.mulesoft.org/schema/mule/os"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+        http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- Experience API: Bulk Ticket Ingestion Flow -->
+    <flow name="post:\tickets\bulk:application\json:experience-api-config" doc:name="post:\tickets\bulk:application\json">
+        <logger level="INFO" doc:name="Log Bulk Submission"
+                message="[Experience API] Received bulk submission of #[sizeOf(payload)] tickets. Starting batch job."/>
+
+        <set-variable value="#['BATCH-' ++ ((randomInt(89999) + 10000) as String)]"
+                      variableName="batchId" doc:name="Generate Batch ID"/>
+        <set-variable value="#[sizeOf(payload)]"
+                      variableName="recordCount" doc:name="Save Record Count"/>
+
+        <!-- Asynchronous Mule Batch Job -->
+        <batch:job jobName="ticket-processing-batch-job" blockSize="10" maxFailedRecords="-1" doc:name="Ticket Batch Job">
+            <batch:process-records>
+                <!-- Step 1: AI Classification & Urgency Routing -->
+                <batch:step name="Batch_Step_AI_Classification" acceptPolicy="ALL" doc:name="Step: AI Classification">
+                    <set-variable value="#[payload]" variableName="originalTicket" doc:name="Set Original Ticket"/>
+                    <flow-ref name="classify-ticket-with-ai-subflow" doc:name="Invoke AI Sub-flow"/>
+                    <flow-ref name="route-ticket-by-urgency-subflow" doc:name="Invoke Routing Sub-flow"/>
+                </batch:step>
+
+                <!-- Step 2: CRM Case Creation (Only runs for successful records) -->
+                <batch:step name="Batch_Step_CRM_Case_Creation" acceptPolicy="NO_FAILURES" doc:name="Step: CRM Case Creation">
+                    <flow-ref name="create-crm-case-subflow" doc:name="Invoke CRM Sub-flow"/>
+                    <!-- Cache in Object Store -->
+                    <os:store key="#[payload.ticketId]"
+                              objectStore="Ticket_Object_Store"
+                              doc:name="Cache Processed Ticket">
+                        <os:value>#[payload]</os:value>
+                    </os:store>
+                </batch:step>
+            </batch:process-records>
+
+            <!-- On-Complete Phase: Summarizes Batch Run -->
+            <batch:on-complete>
+                <logger level="INFO" doc:name="Log Batch Complete"
+                        message="[Batch Job] Bulk ticket processing finished. Total: #[payload.totalRecords], Succeeded: #[payload.successfulRecords], Failed: #[payload.failedRecords]"/>
+            </batch:on-complete>
+        </batch:job>
+
+        <!-- Immediate HTTP 202 Accepted Response to Client -->
+        <set-variable value="202" variableName="httpStatus" doc:name="Set HTTP 202 Accepted"/>
+        <ee:transform doc:name="Build Batch Accepted Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    batchId: vars.batchId,
+    status: "ACCEPTED",
+    recordCount: vars.recordCount,
+    receivedAt: now(),
+    message: "Bulk ticket batch accepted for asynchronous processing."
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+
+        <error-handler ref="global-error-handler"/>
+    </flow>
+
+</mule>
