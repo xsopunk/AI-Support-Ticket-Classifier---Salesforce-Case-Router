@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+    <munit:config name="system-api-test-suite.xml"/>
+
+    <!-- Test: System API Case Creation Endpoint Returns Case ID -->
+    <munit:test name="test-system-api-case-creation-endpoint" description="Verify CRM endpoint creates Case record">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value="#[{
+                    Subject: 'Urgent: Payment charged twice',
+                    Description: 'Please refund the duplicate transaction.',
+                    Priority: 'High',
+                    Status: 'New',
+                    Origin: 'Web Ingestion API'
+                }]"/>
+            </munit:set-event>
+            <flow-ref name="post-crm-case-flow"/>
+        </munit:execution>
+
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]"
+                                     is="#[MunitTools::equalTo('New')]"
+                                     message="Expected Case status New"/>
+            <munit-tools:assert-that expression="#[payload.caseNumber startsWith 'SF-']"
+                                     is="#[MunitTools::equalTo(true)]"
+                                     message="Expected Case Number prefix SF-"/>
+        </munit:validation>
+    </munit:test>
+
+</mule>
