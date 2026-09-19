@@ -1,0 +1,44 @@
+# ==============================================================================
+# AI Support Ticket Classifier & Salesforce Case Router Configuration
+# ==============================================================================
+
+# API-Led Connectivity Ports
+http:
+  experience:
+    port: "8081"
+    host: "0.0.0.0"
+    path: "/api/*"
+  process:
+    port: "8082"
+    host: "0.0.0.0"
+    path: "/api/*"
+  system:
+    port: "8083"
+    host: "0.0.0.0"
+    path: "/api/*"
+
+# Groq AI Service Configuration
+groq:
+  protocol: "HTTPS"
+  host: "api.groq.com"
+  port: "443"
+  basePath: "/openai/v1"
+  endpoint: "/chat/completions"
+  model: "llama-3.3-70b-versatile"
+  apiKey: "YOUR_GROQ_API_KEY_HERE"
+  timeout: "30000"
+
+# CRM / Salesforce Service Configuration (Mock / Real)
+crm:
+  protocol: "HTTP"
+  host: "localhost"
+  port: "8083"
+  basePath: "/api/crm"
+  caseEndpoint: "/cases"
+  mode: "mock" # options: mock, salesforce
+
+# Object Store Configuration (Duplicate Guard & Cache)
+objectStore:
+  ttlMinutes: "60"
+  entryTtl: "3600"
+  expirationInterval: "10"
