@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:os="http://www.mulesoft.org/schema/mule/os"
+      xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+        http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd">
+
+    <!-- Configuration Properties (config.yaml) -->
+    <configuration-properties file="config.yaml" doc:name="Configuration properties" doc:id="cfg-prop-01"/>
+
+    <!-- HTTP Listener Configurations for API-Led Layers -->
+    <http:listener-config name="HTTP_Listener_config_Experience" doc:name="HTTP Listener config Experience">
+        <http:listener-connection host="${http.experience.host}" port="${http.experience.port}"/>
+    </http:listener-config>
+
+    <http:listener-config name="HTTP_Listener_config_Process" doc:name="HTTP Listener config Process">
+        <http:listener-connection host="${http.process.host}" port="${http.process.port}"/>
+    </http:listener-config>
+
+    <http:listener-config name="HTTP_Listener_config_System" doc:name="HTTP Listener config System">
+        <http:listener-connection host="${http.system.host}" port="${http.system.port}"/>
+    </http:listener-config>
+
+    <!-- HTTP Request Configurations for Inter-layer and External Calls -->
+    <http:request-config name="HTTP_Request_Process_API" doc:name="HTTP Request config Process API"
+                         basePath="/api">
+        <http:request-connection host="${http.process.host}" port="${http.process.port}"/>
+    </http:request-config>
+
+    <http:request-config name="HTTP_Request_Groq_API" doc:name="HTTP Request config Groq API"
+                         basePath="${groq.basePath}" responseTimeout="${groq.timeout}">
+        <http:request-connection protocol="${groq.protocol}" host="${groq.host}" port="${groq.port}"/>
+    </http:request-config>
+
+    <http:request-config name="HTTP_Request_System_API" doc:name="HTTP Request config System API"
+                         basePath="${crm.basePath}">
+        <http:request-connection protocol="${crm.protocol}" host="${crm.host}" port="${crm.port}"/>
+    </http:request-config>
+
+    <!-- Object Store Configuration for Idempotency and AI Response Caching -->
+    <os:config name="ObjectStore_Config" doc:name="ObjectStore Config"/>
+    <os:object-store name="Ticket_Object_Store"
+                     config-ref="ObjectStore_Config"
+                     entryTtl="${objectStore.entryTtl}"
+                     expirationInterval="${objectStore.expirationInterval}"
+                     maxEntries="1000"/>
+
+    <!-- APIkit Configuration for RAML Routing -->
+    <apikit:config name="experience-api-config"
+                   api="api/experience-api.raml"
+                   outboundHeadersMapName="outboundHeaders"
+                   httpStatusVarName="httpStatus"/>
+
+</mule>
