@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- Main Experience API Gateway & Router Flow -->
+    <flow name="experience-api-main" doc:name="experience-api-main">
+        <http:listener config-ref="HTTP_Listener_config_Experience" path="/api/*" doc:name="HTTP Listener Experience">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+
+        <apikit:router config-ref="experience-api-config" doc:name="APIkit Router"/>
+
+        <error-handler ref="global-error-handler"/>
+    </flow>
+
+    <!-- POST /tickets : Ingest and Classify Single Ticket -->
+    <flow name="post:\tickets:application\json:experience-api-config" doc:name="post:\tickets:application\json">
+        <logger level="INFO" doc:name="Log Ticket Ingestion"
+                message="[Experience API] Received ticket submission for ticketId: #[payload.ticketId], correlationId: #[correlationId]"/>
+
+        <set-variable value="#[payload]" variableName="rawTicket" doc:name="Save Raw Ticket"/>
+
+        <!-- Validate Input Payload using DataWeave -->
+        <ee:transform doc:name="Validate Ticket Schema">
+            <ee:message>
+                <ee:set-payload resource="dwl/validate-ticket-request.dwl"/>
+            </ee:message>
+        </ee:transform>
+
+        <choice doc:name="Validation Choice Router">
+            <when expression="#[payload.isValid == false]">
+                <set-variable value="400" variableName="httpStatus" doc:name="Set 400 Bad Request"/>
+                <ee:transform doc:name="Build Validation Error Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    timestamp: now(),
+    statusCode: 400,
+    errorType: "VALIDATION:INVALID_PAYLOAD",
+    message: "Ticket validation failed: " ++ (payload.errors joinBy ", "),
+    correlationId: correlationId
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <otherwise>
+                <!-- Forward Validated Ticket to Process API -->
+                <logger level="INFO" doc:name="Log Forward to Process"
+                        message="[Experience API] Ticket validation passed. Forwarding ticket #[payload.ticket.ticketId] to Process API"/>
+                
+                <set-payload value="#[payload.ticket]" doc:name="Set Validated Ticket Payload"/>
+
+                <http:request method="POST"
+                              config-ref="HTTP_Request_Process_API"
+                              path="/process-ticket"
+                              doc:name="Invoke Process API">
+                    <http:headers>#[{ "X-Correlation-ID": correlationId }]</http:headers>
+                </http:request>
+
+                <set-variable value="201" variableName="httpStatus" doc:name="Set HTTP 201 Created"/>
+            </otherwise>
+        </choice>
+
+        <error-handler ref="global-error-handler"/>
+    </flow>
+
+    <!-- GET /tickets/{ticketId} : Retrieve Ticket Status -->
+    <flow name="get:\tickets\(ticketId):experience-api-config" doc:name="get:\tickets\(ticketId)">
+        <logger level="INFO" doc:name="Log Status Request"
+                message="[Experience API] Status check requested for ticketId: #[attributes.uriParams.ticketId]"/>
+
+        <http:request method="GET"
+                      config-ref="HTTP_Request_Process_API"
+                      path="#['/tickets/' ++ attributes.uriParams.ticketId]"
+                      doc:name="Fetch Ticket from Process API">
+            <http:headers>#[{ "X-Correlation-ID": correlationId }]</http:headers>
+        </http:request>
+
+        <error-handler ref="global-error-handler"/>
+    </flow>
+
+    <!-- GET /health : Service Health Check -->
+    <flow name="get:\health:experience-api-config" doc:name="get:\health">
+        <ee:transform doc:name="Health Check Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    status: "UP",
+    service: "support-ticket-experience-api",
+    version: "1.0.0",
+    timestamp: now(),
+    runtime: "Mule 4.4.0"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
+</mule>
