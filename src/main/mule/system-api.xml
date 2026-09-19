@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <!-- System API: CRM / Salesforce Case Endpoint (System of Record) -->
+    <flow name="post-crm-case-flow" doc:name="post-crm-case-flow">
+        <http:listener config-ref="HTTP_Listener_config_System" path="/crm/cases" doc:name="HTTP Listener System API">
+            <http:response statusCode="201"/>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+            </http:error-response>
+        </http:listener>
+
+        <logger level="INFO" doc:name="Log Case Creation"
+                message="[System API] Creating Case in CRM. Priority: #[payload.Priority], Subject: #[payload.Subject]"/>
+
+        <ee:transform doc:name="Generate Salesforce Case Record">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var simulatedCaseNum = "SF-" ++ ((randomInt(89999) + 10000) as String)
+var simulatedId = "500" ++ ((randomInt(899999999) + 100000000) as String)
+---
+{
+    id: simulatedId,
+    caseNumber: simulatedCaseNum,
+    status: payload.Status default "New",
+    priority: payload.Priority default "Medium",
+    subject: payload.Subject,
+    createdDate: now(),
+    origin: payload.Origin default "Web Ingestion API",
+    customFields: payload.CustomFields default {}
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+
+        <logger level="INFO" doc:name="Log Case Created"
+                message="[System API] Case record successfully created: #[payload.caseNumber] (ID: #[payload.id])"/>
+
+        <error-handler ref="global-error-handler"/>
+    </flow>
+
+    <!-- Sub-flow: Client Call to System API (Invoked from Process API) -->
+    <sub-flow name="create-crm-case-subflow" doc:name="create-crm-case-subflow">
+        <logger level="INFO" doc:name="Log Start CRM Integration"
+                message="[Process API] Initiating CRM Case creation for ticket: #[payload.ticketId]"/>
+
+        <set-variable value="#[payload]" variableName="classifiedTicket" doc:name="Save Classified Ticket"/>
+
+        <!-- Map Classified Ticket to Salesforce SObject Schema -->
+        <ee:transform doc:name="Map to Salesforce Case Schema">
+            <ee:message>
+                <ee:set-payload resource="dwl/map-salesforce-case.dwl"/>
+            </ee:message>
+        </ee:transform>
+
+        <!-- Invoke System API via HTTP Request -->
+        <http:request method="POST"
+                      config-ref="HTTP_Request_System_API"
+                      path="/cases"
+                      doc:name="POST /api/crm/cases">
+            <http:headers>#[{ "X-Correlation-ID": correlationId }]</http:headers>
+        </http:request>
+
+        <!-- Format Final Unified Ticket Response -->
+        <ee:transform doc:name="Format Final Ticket Response">
+            <ee:message>
+                <ee:set-payload resource="dwl/format-final-ticket-response.dwl"/>
+            </ee:message>
+        </ee:transform>
+
+        <logger level="INFO" doc:name="Log Case Linked"
+                message="[Process API] Successfully linked ticket #[payload.ticketId] to Case #[payload.caseNumber]"/>
+    </sub-flow>
+
+</mule>
