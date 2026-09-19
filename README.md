@@ -79,25 +79,34 @@ The solution adheres strictly to MuleSoft's 3-Tier API-Led Connectivity paradigm
 
 ---
 
-## 5. Setup & Running Locally
+## 5. How to View in Anypoint Studio
 
-### Prerequisites
-* Java JDK 8 or 11
-* Apache Maven 3.6+
-* Anypoint Studio 7.x (Optional for graphical flow visualization)
+You can visually view and edit this project in Anypoint Studio:
+1. Open **Anypoint Studio**.
+2. Click **File** > **Import** > **Anypoint Studio** > **Anypoint Studio project from File System**.
+3. Select this project root directory.
+4. Studio will automatically index the project and display the visual graphical canvas (Message Flow view) for each flow under `src/main/mule/`.
 
-### Configuration
-Update `src/main/resources/config.yaml` with your Groq API key:
-```yaml
-groq:
-  apiKey: "gsk_your_groq_api_key_here"
-```
+---
 
-### Build & Run
-```bash
-# Clean and package the application
-mvn clean package
+## 6. Live Interactive Simulator
 
-# Run MUnit tests
-mvn test
+An interactive test dashboard is included in `demo-simulator/index.html`.
+Simply open `demo-simulator/index.html` in any web browser to:
+* Submit test tickets with preloaded presets (P1 Outage, P2 Angry Billing, P4 Inquiry).
+* Watch the live 4-step pipeline transition visually.
+* Test duplicate ticket caching with Mule Object Store.
+* View real-time JSON responses and Salesforce Case IDs.
+
+---
+
+## 7. Resume Highlight Bullets
+
+```text
+• Developed an enterprise API-led integration pipeline in Mule 4 adhering to 3-tier architecture (Experience, Process, and System APIs) for customer support ticket triage.
+• Designed RAML 1.0 specifications with modular DataTypes, externalized configurations (config.yaml), and wired Anypoint API Manager autodiscovery.
+• Implemented advanced DataWeave 2.0 transformations for schema validation, prompt engineering, and mapping to Salesforce Case SObjects.
+• Orchestrated intelligent routing using Choice Router, Scatter-Gather for parallel audit logging, and Object Store v2 for idempotency and duplicate detection.
+• Integrated Groq Cloud LLM API for automated sentiment and urgency analysis, with resilient On-Error-Continue fallback handling.
+• Achieved comprehensive test coverage across all layers using MUnit 2.x test suites with mock-when processors and assertions.
 ```
