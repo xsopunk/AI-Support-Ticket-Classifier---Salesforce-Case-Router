@@ -97,16 +97,3 @@ Simply open `demo-simulator/index.html` in any web browser to:
 * Watch the live 4-step pipeline transition visually.
 * Test duplicate ticket caching with Mule Object Store.
 * View real-time JSON responses and Salesforce Case IDs.
-
----
-
-## 7. Resume Highlight Bullets
-
-```text
-• Developed an enterprise API-led integration pipeline in Mule 4 adhering to 3-tier architecture (Experience, Process, and System APIs) for customer support ticket triage.
-• Designed RAML 1.0 specifications with modular DataTypes, externalized configurations (config.yaml), and wired Anypoint API Manager autodiscovery.
-• Implemented advanced DataWeave 2.0 transformations for schema validation, prompt engineering, and mapping to Salesforce Case SObjects.
-• Orchestrated intelligent routing using Choice Router, Scatter-Gather for parallel audit logging, and Object Store v2 for idempotency and duplicate detection.
-• Integrated Groq Cloud LLM API for automated sentiment and urgency analysis, with resilient On-Error-Continue fallback handling.
-• Achieved comprehensive test coverage across all layers using MUnit 2.x test suites with mock-when processors and assertions.
-```
