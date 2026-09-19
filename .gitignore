@@ -1,0 +1,25 @@
+# MuleSoft / Anypoint Studio ignore
+target/
+.mule/
+.metadata/
+.project
+.classpath
+.settings/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build and log artifacts
+*.log
+*.class
+*.jar
+*.zip
+*.war
+
+# Environment and secrets
+.env
+*.key
+*.pem
+credentials.yaml
