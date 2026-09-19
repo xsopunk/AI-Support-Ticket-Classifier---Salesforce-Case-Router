@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <error-handler name="global-error-handler">
+        <!-- 400 Bad Request -->
+        <on-error-propagate type="APIKIT:BAD_REQUEST, EXPRESSION" enableNotifications="true" logException="true">
+            <set-variable value="400" variableName="httpStatus" doc:name="Set HTTP 400"/>
+            <ee:transform doc:name="Transform Error 400">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    timestamp: now(),
+    statusCode: 400,
+    errorType: error.errorType.identifier default "BAD_REQUEST",
+    message: error.description default "Bad request. Please verify required fields and data types.",
+    correlationId: correlationId
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </on-error-propagate>
+
+        <!-- 404 Not Found -->
+        <on-error-propagate type="APIKIT:NOT_FOUND" enableNotifications="true" logException="true">
+            <set-variable value="404" variableName="httpStatus" doc:name="Set HTTP 404"/>
+            <ee:transform doc:name="Transform Error 404">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    timestamp: now(),
+    statusCode: 404,
+    errorType: "RESOURCE_NOT_FOUND",
+    message: error.description default "The requested resource was not found.",
+    correlationId: correlationId
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </on-error-propagate>
+
+        <!-- 405 Method Not Allowed -->
+        <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED" enableNotifications="true" logException="true">
+            <set-variable value="405" variableName="httpStatus" doc:name="Set HTTP 405"/>
+            <ee:transform doc:name="Transform Error 405">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    timestamp: now(),
+    statusCode: 405,
+    errorType: "METHOD_NOT_ALLOWED",
+    message: "HTTP method not allowed for this endpoint.",
+    correlationId: correlationId
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </on-error-propagate>
+
+        <!-- 415 Unsupported Media Type -->
+        <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE" enableNotifications="true" logException="true">
+            <set-variable value="415" variableName="httpStatus" doc:name="Set HTTP 415"/>
+            <ee:transform doc:name="Transform Error 415">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    timestamp: now(),
+    statusCode: 415,
+    errorType: "UNSUPPORTED_MEDIA_TYPE",
+    message: "Payload media type is not supported. Use application/json.",
+    correlationId: correlationId
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </on-error-propagate>
+
+        <!-- 503 Service Unavailable / Connectivity -->
+        <on-error-propagate type="HTTP:CONNECTIVITY, HTTP:TIMEOUT" enableNotifications="true" logException="true">
+            <set-variable value="503" variableName="httpStatus" doc:name="Set HTTP 503"/>
+            <ee:transform doc:name="Transform Error 503">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    timestamp: now(),
+    statusCode: 503,
+    errorType: "SERVICE_UNAVAILABLE",
+    message: "Downstream service connectivity timeout or failure. Please retry shortly.",
+    correlationId: correlationId
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </on-error-propagate>
+
+        <!-- 500 Internal Server Error (Fallback) -->
+        <on-error-propagate type="ANY" enableNotifications="true" logException="true">
+            <set-variable value="500" variableName="httpStatus" doc:name="Set HTTP 500"/>
+            <ee:transform doc:name="Transform Error 500">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    timestamp: now(),
+    statusCode: 500,
+    errorType: error.errorType.identifier default "INTERNAL_SERVER_ERROR",
+    message: error.description default "An unexpected internal error occurred during ticket processing.",
+    correlationId: correlationId
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </on-error-propagate>
+    </error-handler>
+
+</mule>
