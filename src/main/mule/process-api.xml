@@ -48,13 +48,48 @@
                 </ee:transform>
             </when>
 
-            <!-- Branch 2: New Ticket - Orchestrate AI & System Layers -->
+            <!-- Branch 2: New Ticket - Parallel Scatter-Gather & Downstream Flow -->
             <otherwise>
                 <logger level="INFO" doc:name="Log New Ticket Processing"
                         message="[Process API] Processing new ticket: #[vars.originalTicket.ticketId]"/>
 
-                <!-- 1. Invoke Groq AI Sub-flow to analyze sentiment and urgency -->
-                <flow-ref name="classify-ticket-with-ai-subflow" doc:name="Invoke AI Classification Sub-flow"/>
+                <!-- Scatter-Gather: Execute AI Analysis and Audit Logging in Parallel -->
+                <scatter-gather doc:name="Scatter-Gather AI and Audit" maxConcurrency="2">
+                    <!-- Route 0: AI Sentiment & Urgency Analysis -->
+                    <route>
+                        <flow-ref name="classify-ticket-with-ai-subflow" doc:name="Invoke AI Sub-flow"/>
+                    </route>
+                    <!-- Route 1: Parallel Audit Logging Snapshot -->
+                    <route>
+                        <ee:transform doc:name="Create Audit Record">
+                            <ee:message>
+                                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    auditId: "AUD-" ++ ((randomInt(899999) + 100000) as String),
+    ticketId: vars.originalTicket.ticketId,
+    customerEmail: vars.originalTicket.email,
+    event: "TICKET_INGESTED_FOR_TRIAGE",
+    timestamp: now(),
+    correlationId: correlationId
+}]]></ee:set-payload>
+                            </ee:message>
+                        </ee:transform>
+                        <logger level="INFO" doc:name="Log Audit Event"
+                                message="[Audit Log] Parallel audit record recorded: #[payload.auditId] for ticket: #[payload.ticketId]"/>
+                    </route>
+                </scatter-gather>
+
+                <!-- Aggregate Scatter-Gather results -->
+                <ee:transform doc:name="Aggregate Scatter-Gather Results">
+                    <ee:message>
+                        <ee:set-payload resource="dwl/aggregate-scatter-gather.dwl"/>
+                    </ee:message>
+                </ee:transform>
+
+                <set-variable value="#[payload.aiResult]" variableName="aiAnalysis" doc:name="Save Aggregated AI Analysis"/>
+                <set-variable value="#[payload.auditRecord]" variableName="auditRecord" doc:name="Save Audit Record"/>
 
                 <!-- 2. Invoke Choice Router Sub-flow to determine priority queue -->
                 <flow-ref name="route-ticket-by-urgency-subflow" doc:name="Invoke Urgency Routing Sub-flow"/>
