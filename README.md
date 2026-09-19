@@ -1,90 +1,103 @@
 # AI Support Ticket Classifier & Salesforce Case Router
 
-An enterprise API-led integration built with **MuleSoft (Mule 4)** that automatically reads incoming customer support complaints, classifies sentiment and urgency using an **LLM (Groq / LLaMA 3.3)**, and routes prioritized cases to **Salesforce Service Cloud**.
+An enterprise API-led integration built with **MuleSoft (Mule 4)** that automatically ingests customer support tickets, classifies sentiment and urgency using an **LLM (Groq / LLaMA 3.3)**, and routes prioritized cases into **Salesforce Service Cloud**.
 
 ---
 
-## 1. Project Overview (In Simple Words)
+## 1. Project Overview
 
-When a customer submits a complaint on a website (for example: *"My account was debited twice and customer service is not responding!"*), support teams usually have to read each ticket manually to figure out who should handle it first.
+Customer support centers receive hundreds of inquiries and complaints each day. Manually triaging each ticket introduces delays, causing critical customer issues to sit unaddressed in queues.
 
-This project automates that entire process using **MuleSoft**:
-1. **Receives:** Catches the support ticket via a secure REST API.
-2. **Understands:** Sends the complaint text to an AI model to detect the emotion (*Angry, Frustrated, Neutral*) and urgency (*Critical, High, Medium, Low*).
-3. **Decides & Routes:** If a customer is furious or facing a critical issue, MuleSoft prioritizes the ticket and immediately routes it to senior agents in Salesforce CRM.
+This project solves this challenge by implementing an automated **API-Led Integration Pipeline**:
+* **Ingestion:** Securely receives support tickets from customer touchpoints via an Experience API.
+* **Intelligent Triage:** Orchestrates an asynchronous analysis via a GenAI LLM (Groq API) to assess customer sentiment (*Angry, Frustrated, Neutral, Satisfied*) and incident urgency (*Critical, High, Medium, Low*).
+* **Automated Routing:** Implements conditional business logic (Choice Router) to categorize priority and route high-severity cases directly into Salesforce Service Cloud for immediate agent attention.
+* **Resilience & Performance:** Uses Object Store for request deduplication and caching, Scatter-Gather for parallel auditing, and comprehensive global error handling.
 
 ---
 
 ## 2. API-Led Architecture
 
-This project strictly follows MuleSoft's **3-Tier API-Led Connectivity** standard:
+The solution adheres strictly to MuleSoft's 3-Tier API-Led Connectivity paradigm:
 
 ```
-[ Customer / Postman / Web Form ]
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│ 1. Experience API (Port: 8081)          │
-│    - Validates incoming ticket data     │
-│    - Governed by RAML 1.0 specification │
-└──────────────────┬──────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────┐
-│ 2. Process API (Port: 8082)             │
-│    - Duplicate check with Object Store  │
-│    - Calls Groq AI for sentiment/urgency│
-│    - Choice Router sets priority level  │
-│    - Scatter-Gather for parallel audit  │
-└──────────────────┬──────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────┐
-│ 3. System API (Port: 8083)              │
-│    - Creates Case record in CRM/Salesforce│
-│    - Returns confirmation & Case ID     │
-└─────────────────────────────────────────┘
+[ Customer / Web Portal / Mobile App ]
+                  │
+                  ▼
+┌──────────────────────────────────────────────┐
+│  1. Experience API (Port: 8081)               │
+│     - Public-facing REST endpoint            │
+│     - Contract governed by RAML 1.0          │
+│     - Schema validation & client response    │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────┐
+│  2. Process API (Port: 8082)                  │
+│     - Business logic & orchestration         │
+│     - Idempotency check via Object Store     │
+│     - AI prompt construction & Groq API call │
+│     - Urgency classification & Choice Router │
+│     - Parallel audit logging (Scatter-Gather)│
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────┐
+│  3. System API (Port: 8083)                   │
+│     - Decoupled CRM System of Record         │
+│     - Case creation in Salesforce Service CRM│
+│     - Returns generated Case Number & Status │
+└──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. MuleSoft Technologies & Features Used
+## 3. Technology Stack & MuleSoft Components
 
-* **RAML 1.0:** Formally designed API contracts and data schemas.
-* **DataWeave 2.0:** Complex JSON transformations, prompt engineering, and field enrichments.
-* **Flow Control:** Choice Router for conditional business branching, Scatter-Gather for concurrent execution.
-* **State Management:** Mule Object Store v2 for duplicate ticket detection (idempotency).
-* **Reliability:** Global Error Handling with `On-Error-Propagate` and `On-Error-Continue`.
-* **Security & Configuration:** Externalized environment properties (`config.yaml`).
-* **Quality Assurance:** MUnit test suites with mocks and assertions.
-
----
-
-## 4. Current Status: Chunk 1 Completed
-
-- [x] **Chunk 1: Project Scaffold & Maven Setup**
-  - Standard Mule 4 directory structure created.
-  - Maven `pom.xml` configured with Mule 4.4.0 runtime, HTTP, Sockets, and Object Store connectors.
-  - Externalized `config.yaml` for environment variables.
-  - Log4j2 structured logging setup.
-  - Initial project documentation and `.gitignore`.
-- [ ] **Chunk 2: RAML 1.0 API Specification** (Next)
-- [ ] **Chunk 3: Experience API (HTTP Listener & Validation)**
-- [ ] **Chunk 4: Process API Core & Object Store**
-- [ ] **Chunk 5: Groq AI Integration (DataWeave & HTTP Request)**
-- [ ] **Chunk 6: Choice Router & Priority Routing**
-- [ ] **Chunk 7: System API (Salesforce / Mock CRM)**
-- [ ] **Chunk 8: Scatter-Gather Parallel Processing**
-- [ ] **Chunk 9: Batch Job Bulk Processing**
-- [ ] **Chunk 10: MUnit Test Suites**
-- [ ] **Chunk 11: API Autodiscovery & CloudHub Deploy**
-- [ ] **Chunk 12: Final Polish & Visual Verification**
+* **Runtime:** Mule 4.4.0
+* **API Specification:** RAML 1.0 with modular DataType fragments and JSON examples
+* **Transformation Language:** DataWeave 2.0
+* **Flow Routers & Scopes:** Choice Router, Scatter-Gather, Sub-flows, Flow References
+* **Connectors:** HTTP Connector, Sockets Connector, Object Store v2
+* **Error Handling:** Global Error Handler (`On-Error-Propagate` and `On-Error-Continue`)
+* **Testing:** MUnit 2.3.14 with mocking and assertions
+* **Configuration:** Externalized YAML properties (`config.yaml`) and secure property masks
+* **AI Provider:** Groq Cloud API (LLaMA 3.3 70B Versatile)
 
 ---
 
-## 5. Quick Start (Prerequisites)
+## 4. API Endpoints
 
-* **Java JDK:** 8 or 11
-* **Maven:** 3.6.x or newer
-* **Anypoint Studio:** 7.x (Optional, can be viewed and opened in Studio directly)
-* **Groq API Key:** Free key from [console.groq.com](https://console.groq.com)
+| Layer | Method | Path | Description |
+|:---|:---|:---|:---|
+| Experience | `POST` | `/api/tickets` | Ingest and classify a single support ticket |
+| Experience | `GET` | `/api/tickets/{ticketId}` | Retrieve current processing status of a ticket |
+| Experience | `POST` | `/api/tickets/bulk` | Bulk ingestion for ticket batch processing |
+| Experience | `GET` | `/api/health` | Service health and uptime check |
+| Process | `POST` | `/api/process-ticket` | Orchestrate AI analysis, routing, and CRM call |
+| System | `POST` | `/api/crm/cases` | Create Case record in CRM/Salesforce |
+
+---
+
+## 5. Setup & Running Locally
+
+### Prerequisites
+* Java JDK 8 or 11
+* Apache Maven 3.6+
+* Anypoint Studio 7.x (Optional for graphical flow visualization)
+
+### Configuration
+Update `src/main/resources/config.yaml` with your Groq API key:
+```yaml
+groq:
+  apiKey: "gsk_your_groq_api_key_here"
+```
+
+### Build & Run
+```bash
+# Clean and package the application
+mvn clean package
+
+# Run MUnit tests
+mvn test
+```
