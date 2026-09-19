@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mule xmlns="http://www.mulesoft.org/schema/mule/core"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
       xmlns:http="http://www.mulesoft.org/schema/mule/http"
       xmlns:os="http://www.mulesoft.org/schema/mule/os"
       xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
@@ -11,7 +12,7 @@
         http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd">
 
     <!-- Configuration Properties (config.yaml) -->
-    <configuration-properties file="config.yaml" doc:name="Configuration properties" doc:id="cfg-prop-01"/>
+    <configuration-properties file="config.yaml" doc:name="Configuration properties"/>
 
     <!-- HTTP Listener Configurations for API-Led Layers -->
     <http:listener-config name="HTTP_Listener_config_Experience" doc:name="HTTP Listener config Experience">
