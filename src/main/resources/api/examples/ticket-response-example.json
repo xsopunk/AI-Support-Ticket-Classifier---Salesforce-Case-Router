@@ -1,0 +1,11 @@
+{
+  "ticketId": "TCK-1001",
+  "status": "PROCESSED",
+  "sentiment": "Angry",
+  "urgency": "High",
+  "assignedPriority": "P2-High",
+  "caseNumber": "SF-84920",
+  "aiSummary": "Customer reported duplicate subscription charge resulting in overdrawn account, requesting immediate refund.",
+  "routedQueue": "Priority-Billing-Escalations",
+  "processedAt": "2026-09-19T10:30:05Z"
+}

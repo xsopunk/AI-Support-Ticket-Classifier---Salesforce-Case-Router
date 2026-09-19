@@ -1,0 +1,9 @@
+{
+  "ticketId": "TCK-1001",
+  "customerName": "Alex Johnson",
+  "email": "alex.johnson@example.com",
+  "subject": "Urgent: Payment charged twice",
+  "description": "I was charged twice for my subscription renewal today. Please refund the duplicate transaction immediately as my account is overdrawn.",
+  "category": "Billing",
+  "submittedAt": "2026-09-19T10:30:00Z"
+}

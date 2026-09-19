@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-09-19T10:30:00Z",
+  "statusCode": 400,
+  "errorType": "APIKIT:BAD_REQUEST",
+  "message": "Validation failed: 'email' must be a valid email address.",
+  "correlationId": "c0a80101-8b4d-4195-a2bf-a2565e89f62f"
+}
